@@ -1,0 +1,26 @@
+OUTSIDE LAB — START HERE
+
+Fastest preview (no npm installation):
+1. Open preview/index.html in your web browser.
+2. Complete a check-in, start a timer, end it, rate your mood, see your journal.
+3. The AI button requires your own Backboard API key on a separate FastAPI server.
+
+To enable real Backboard AI on Windows:
+1. Open PowerShell in this extracted folder.
+2. cd backend
+3. py -m venv .venv
+4. .\.venv\Scripts\Activate.ps1
+5. pip install -r requirements.txt
+6. copy .env.example .env
+7. Edit backend/.env with your BACKBOARD_API_KEY (never publish this file).
+8. python check_models.py (verify available Qwen model; adjust BACKBOARD_MODEL if needed).
+9. uvicorn app.main:app --port 8000
+10. Open another PowerShell: cd preview; py -m http.server 8787
+11. Open http://localhost:8787 and try Ask open AI.
+
+For React source: cd frontend; npm install; npm run dev. It uses the local backend.
+
+See README.md for complete docs, privacy limitations, tests, and contest checklist.
+See docs/DEV_ARTICLE_DRAFT.md and docs/DEMO_SCRIPT.md for submission materials.
+
+NOTE: I could not validate real Backboard calls without your API key or build React without npm network access. Backend tests passed and preview flow passed a scripted simulation. Do not claim untested features were verified.
