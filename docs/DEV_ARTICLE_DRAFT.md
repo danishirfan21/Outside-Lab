@@ -35,7 +35,7 @@ The primary frontend is React and TypeScript. FastAPI keeps the Backboard key on
 - The FastAPI adapter uses Backboard's `POST /api/threads/messages`, an `X-API-Key` only on the server, `memory: "off"`, `web_search: "off"`, and `json_output: true`.
 - The response is parsed as JSON and validated against a bounded recommendation schema. An upstream failure produces an error state, never a fabricated AI suggestion.
 
-Automated verification on October 12, 2026: 8 frontend domain tests, 9 backend tests, and the React production build passed. The Backboard catalog listed `openrouter/qwen/qwen3-8b` with JSON support. One live request was attempted but returned the app's safe AI-unavailable response; therefore this draft does **not** claim successful live inference or a real personalization example yet.
+Automated verification on October 12, 2026: 8 frontend domain tests, 12 backend tests, and the React production build passed. The Backboard catalog listed `openrouter/qwen/qwen3-8b` with JSON support. Three bounded live requests reached Backboard but each run was marked `FAILED`; therefore this draft does **not** claim successful live inference or a real personalization example yet.
 
 ## Why Does Open Innovation Matter?
 

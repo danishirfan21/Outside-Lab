@@ -96,7 +96,7 @@ npm test
 npm run build
 ```
 
-**Latest release verification (October 12, 2026):** 9/9 backend tests, 8/8 frontend domain tests, and the production build pass. The Backboard catalog confirms `openrouter/qwen/qwen3-8b` supports JSON output. One minimal live request was attempted with the configured server key but returned the app's safe `502` AI-unavailable response, so no live recommendation is claimed. Run `python check_models.py` and make a successful real request before recording or submitting an AI demo.
+**Latest release verification (October 12, 2026):** 12/12 backend tests, 8/8 frontend domain tests, and the production build pass. The Backboard catalog confirms `openrouter/qwen/qwen3-8b` supports JSON output. Three bounded live checks (plain text, JSON output, and the full route) all returned Backboard run status `FAILED`; no recommendation is claimed. Set `BACKBOARD_DIAGNOSTICS=true` only during local troubleshooting to receive a static failure category such as `upstream_not_completed_failed`, never prompts, model text, or credentials.
 
 ## Android on the same Wi-Fi
 

@@ -16,7 +16,7 @@ import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator
 
 load_dotenv()
 
@@ -25,6 +25,7 @@ PROVIDER = os.getenv("BACKBOARD_PROVIDER", "openrouter")
 MODEL = os.getenv("BACKBOARD_MODEL", "qwen/qwen3-8b")
 KEY = os.getenv("BACKBOARD_API_KEY", "")
 ACCESS_CODE = os.getenv("API_ACCESS_CODE", "")
+DIAGNOSTICS = os.getenv("BACKBOARD_DIAGNOSTICS", "false").lower() == "true"
 ALLOWED_ORIGINS = [item.strip() for item in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:8787,http://127.0.0.1:8787").split(",") if item.strip()]
 
 app = FastAPI(title="Outside Lab API", version="0.1.0", docs_url=None, redoc_url=None)
@@ -32,6 +33,26 @@ app.add_middleware(CORSMiddleware, allow_origins=ALLOWED_ORIGINS, allow_methods=
 
 # Prototype cost guard: per server-process/IP bucket, no persistence across restarts.
 rate_log: dict[str, deque[float]] = defaultdict(deque)
+
+
+class ModelJsonError(ValueError):
+    """The upstream content was not a JSON object; never include it in errors."""
+
+
+class ModelStateError(ValueError):
+    """The upstream request did not reach a completed state."""
+
+
+def ai_failure(code: str) -> HTTPException:
+    """Return an intentionally small, development-only diagnostic category."""
+    detail = f"AI diagnostic: {code}" if DIAGNOSTICS else "AI unavailable or returned an invalid experiment. Retry or use the clearly labeled starter activity."
+    return HTTPException(502, detail)
+
+
+def completed_failure_code(status: object) -> str:
+    """Expose only a normalized terminal state, never upstream error text."""
+    normalized = str(status).lower()
+    return f"upstream_not_completed_{normalized}" if normalized in {"failed", "cancelled", "expired"} else "upstream_not_completed"
 
 class SessionIn(BaseModel):
     activity: Literal["sit", "walk", "pet"]
@@ -113,9 +134,9 @@ def parse_model_text(raw: str) -> Recommendation:
     try:
         obj = json.loads(text)
     except json.JSONDecodeError as exc:
-        raise ValueError("Model did not return valid JSON") from exc
+        raise ModelJsonError("Model did not return valid JSON") from exc
     if not isinstance(obj, dict):
-        raise ValueError("Model JSON was not an object")
+        raise ModelJsonError("Model JSON was not an object")
     return Recommendation.model_validate(obj)
 
 
@@ -139,9 +160,26 @@ async def recommend(payload: RecommendIn, request: Request, x_access_code: str |
             response = await client.post(BACKBOARD_URL, headers={"X-API-Key": KEY, "Content-Type": "application/json"}, json=request_json)
             response.raise_for_status()
             data = response.json()
+        if not isinstance(data, dict):
+            raise TypeError("Upstream response was not an object")
         if data.get("status") not in ("COMPLETED", None):
-            raise ValueError("Model response did not complete")
+            raise ModelStateError(completed_failure_code(data.get("status")))
         return parse_model_text(data["content"])
-    except (httpx.HTTPError, KeyError, ValueError, TypeError) as exc:
-        # Do not leak upstream response bodies, prompts, or credentials to clients/logs.
-        raise HTTPException(502, "AI unavailable or returned an invalid experiment. Retry or use the clearly labeled starter activity.") from exc
+    except httpx.TimeoutException as exc:
+        raise ai_failure("upstream_timeout") from exc
+    except httpx.HTTPStatusError as exc:
+        raise ai_failure(f"upstream_http_{exc.response.status_code}") from exc
+    except httpx.HTTPError as exc:
+        raise ai_failure("upstream_transport_error") from exc
+    except json.JSONDecodeError as exc:
+        raise ai_failure("upstream_response_json") from exc
+    except ModelStateError as exc:
+        raise ai_failure(str(exc)) from exc
+    except KeyError as exc:
+        raise ai_failure("upstream_missing_content") from exc
+    except ModelJsonError as exc:
+        raise ai_failure("model_malformed_json") from exc
+    except ValidationError as exc:
+        raise ai_failure("model_schema_invalid") from exc
+    except (TypeError, ValueError) as exc:
+        raise ai_failure("model_response_invalid") from exc

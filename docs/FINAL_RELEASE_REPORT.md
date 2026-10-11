@@ -21,9 +21,9 @@ The core prototype is implemented: mood check-in, activity and duration selectio
 | --- | --- |
 | `npm test` | Pass — 8 frontend domain tests |
 | `npm run build` | Pass — production Vite build |
-| `python -m pytest backend/tests -q` | Pass — 9 backend tests |
+| `python -m pytest backend/tests -q` | Pass — 12 backend tests |
 | `python check_models.py` | Pass — configured Qwen3-8B found with JSON support |
-| One minimal live `/api/recommend` request | Failed safely — HTTP 502; no recommendation claimed |
+| Three bounded live checks (plain text, JSON mode, full route) | Failed safely — Backboard run status `FAILED`; no recommendation claimed |
 | Android / physical outdoor testing | Not executed |
 
 The automated test suite verifies timer calculations, malformed timestamps, duplicate prevention, mood/API validation, missing credentials, malformed model output, access-code protection, upstream downtime, and the mocked history/request contract. It does not prove a physical phone's browser lifecycle behavior.
@@ -40,7 +40,7 @@ BACKBOARD_MODEL=qwen/qwen3-8b
 
 Run `python check_models.py` from `backend/` before recording. The implementation uses Backboard's non-streaming messages endpoint with `X-API-Key`, model/provider overrides, memory and web search disabled, and JSON output requested. The returned `content` is schema-validated before the frontend uses it.
 
-A configured key was detected during this review. The catalog lookup succeeded, but one minimal live request produced the API's deliberate 502 fallback. The exact upstream detail is not surfaced or logged to avoid leaking request data or credentials. Live personalization is therefore **not verified**. The mocked contract confirms saved browser sessions are serialized into the request, but a real personalized result must be captured after resolving the service response.
+A configured key was detected during this review. The catalog lookup succeeded, but the three permitted progressive requests all returned HTTP 200 with Backboard terminal status `FAILED`; the full route surfaced the deliberate `upstream_not_completed_failed` development diagnostic. This means the failure occurs at upstream model execution, before JSON parsing or schema validation. The exact upstream detail is not surfaced or logged to avoid leaking request data or credentials. Live personalization is therefore **not verified**. The mocked contract confirms saved browser sessions are serialized into the request, but a real personalized result must be captured after resolving the service response.
 
 ## 5. Android testing instructions
 

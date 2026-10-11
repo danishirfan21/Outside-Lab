@@ -1,5 +1,6 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 from backend.app import main
 
 client = TestClient(main.app)
@@ -74,3 +75,51 @@ def test_backend_downtime_returns_safe_error(monkeypatch):
         result = client.post('/api/recommend', json=example)
     assert result.status_code == 502
     assert 'invalid experiment' in result.json()['detail']
+
+def test_development_diagnostics_distinguish_upstream_http_errors(monkeypatch):
+    import httpx
+    monkeypatch.setattr(main, 'KEY', 'fake-key')
+    monkeypatch.setattr(main, 'ACCESS_CODE', '')
+    monkeypatch.setattr(main, 'DIAGNOSTICS', True)
+    monkeypatch.setattr(main, 'rate_log', main.defaultdict(main.deque))
+    request = httpx.Request('POST', main.BACKBOARD_URL)
+    response = httpx.Response(429, request=request)
+    post = AsyncMock(side_effect=httpx.HTTPStatusError('rate limited', request=request, response=response))
+    with patch('backend.app.main.httpx.AsyncClient') as construct:
+        construct.return_value.__aenter__ = AsyncMock(return_value=MagicMock(post=post))
+        construct.return_value.__aexit__ = AsyncMock(return_value=False)
+        result = client.post('/api/recommend', json=example)
+    assert result.status_code == 502
+    assert result.json()['detail'] == 'AI diagnostic: upstream_http_429'
+
+def test_development_diagnostics_distinguish_model_failure_categories(monkeypatch):
+    import json
+    monkeypatch.setattr(main, 'DIAGNOSTICS', True)
+    assert main.ai_failure('upstream_timeout').detail == 'AI diagnostic: upstream_timeout'
+    try:
+        main.parse_model_text('not json')
+    except main.ModelJsonError:
+        pass
+    else:
+        assert False
+    try:
+        main.parse_model_text(json.dumps({"title": "Too short"}))
+    except ValidationError:
+        pass
+    else:
+        assert False
+
+def test_development_diagnostics_identify_failed_upstream_run(monkeypatch):
+    monkeypatch.setattr(main, 'KEY', 'fake-key')
+    monkeypatch.setattr(main, 'ACCESS_CODE', '')
+    monkeypatch.setattr(main, 'DIAGNOSTICS', True)
+    monkeypatch.setattr(main, 'rate_log', main.defaultdict(main.deque))
+    fake = MagicMock()
+    fake.json.return_value = {'status': 'FAILED', 'content': ''}
+    fake.raise_for_status.return_value = None
+    with patch('backend.app.main.httpx.AsyncClient') as construct:
+        construct.return_value.__aenter__ = AsyncMock(return_value=MagicMock(post=AsyncMock(return_value=fake)))
+        construct.return_value.__aexit__ = AsyncMock(return_value=False)
+        result = client.post('/api/recommend', json=example)
+    assert result.status_code == 502
+    assert result.json()['detail'] == 'AI diagnostic: upstream_not_completed_failed'
