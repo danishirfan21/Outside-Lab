@@ -6,6 +6,8 @@ export interface Session {
 }
 export interface ActiveSession {
   id: string; activity: Activity; startedAt: string; moodBefore: Mood; targetMinutes: number;
+  /** Set the moment the person returns, before they complete the reflection. */
+  endedAt?: string;
 }
 export interface Recommendation {
   title: string; instruction: string; rationale: string; focus_question: string;
@@ -24,12 +26,18 @@ export function outdoorMinutes(sessions: Session[]): number {
 }
 export function moodChange(session: Session): number { return session.moodAfter - session.moodBefore; }
 export function elapsedSeconds(start: string, nowMs=Date.now()):number {
-  return Math.max(0,Math.floor((nowMs - new Date(start).getTime())/1000));
+  const startedAt = new Date(start).getTime();
+  if (!Number.isFinite(startedAt) || !Number.isFinite(nowMs)) return 0;
+  return Math.max(0,Math.floor((nowMs - startedAt)/1000));
 }
 export function formatDuration(seconds: number): string {
   const s=Math.max(0,Math.floor(seconds)); return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
 }
 export function readStorage<T>(key: string, fallback: T): T {
   try {const value=localStorage.getItem(key);return value?JSON.parse(value) as T:fallback;}catch{return fallback;}
+}
+/** Idempotently add a completed entry so a repeated click cannot duplicate a journal item. */
+export function appendSessionOnce(sessions: Session[], session: Session): Session[] {
+  return sessions.some(item => item.id === session.id) ? sessions : [session, ...sessions];
 }
 export function niceDate(iso:string){return new Date(iso).toLocaleDateString(undefined,{month:'short',day:'numeric'});}

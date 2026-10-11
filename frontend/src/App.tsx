@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { ArrowLeft, ArrowRight, ArrowUpRight, BookOpen, Check, CheckCircle2, Clock3, Dog, Footprints, Heart, Info, Leaf, LockKeyhole, Moon, Settings2, ShieldCheck, Sparkles, Sprout, Sun, WandSparkles, X } from 'lucide-react';
-import { ACTIVITY_LABELS, DEFAULT_REC, elapsedSeconds, formatDuration, moodChange, niceDate, outdoorMinutes, readStorage, type ActiveSession, type Activity, type Mood, type Recommendation, type Session } from './domain';
+import { ACTIVITY_LABELS, DEFAULT_REC, appendSessionOnce, elapsedSeconds, formatDuration, moodChange, niceDate, outdoorMinutes, readStorage, type ActiveSession, type Activity, type Mood, type Recommendation, type Session } from './domain';
+
+type GlyphProps = { size?: number; strokeWidth?: number };
+/** A lightweight local glyph avoids making the essential timer depend on an icon package. */
+function Glyph({size=20,strokeWidth=1.8}: GlyphProps){
+  return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v18M4.5 8.5c3.5 0 5.5 2.1 7.5 5.5 2-3.4 4-5.5 7.5-5.5M5 16c3 0 5-1.4 7-4 2 2.6 4 4 7 4"/></svg>;
+}
+const ArrowLeft=Glyph, ArrowRight=Glyph, ArrowUpRight=Glyph, BookOpen=Glyph, Check=Glyph, CheckCircle2=Glyph, Clock3=Glyph, Dog=Glyph, Footprints=Glyph, Heart=Glyph, Info=Glyph, Leaf=Glyph, LockKeyhole=Glyph, Moon=Glyph, Settings2=Glyph, ShieldCheck=Glyph, Sparkles=Glyph, Sprout=Glyph, Sun=Glyph, WandSparkles=Glyph, X=Glyph;
 
 type Screen = 'home' | 'prepare' | 'running' | 'finish' | 'result' | 'journal' | 'about';
 const API = (import.meta.env.VITE_API_BASE || '').replace(/\/$/, '');
@@ -51,22 +57,26 @@ export default function App(){
   const positive=outdoorSessions.filter(s=>moodChange(s)>0).length;
   const meaningful=outdoorSessions.filter(s=>s.seconds>=60).length;
   const avgDelta=outdoorSessions.length? outdoorSessions.reduce((n,s)=>n+moodChange(s),0)/outdoorSessions.length:0;
-  const elapsed=active?elapsedSeconds(active.startedAt,now):0;
+  const elapsed=active?elapsedSeconds(active.startedAt,active.endedAt?Date.parse(active.endedAt):now):0;
 
   useEffect(()=>{const i=window.setInterval(()=>setNow(Date.now()),1000);return()=>window.clearInterval(i)},[]);
-  useEffect(()=>{if(active&&screen==='home')setScreen('running');},[]); // recover after refresh
+  useEffect(()=>{if(active&&screen==='home')setScreen(active.endedAt?'finish':'running');},[]); // recover after refresh
   useEffect(()=>{fetch(`${API}/api/health`).then(async r=>{if(!r.ok)throw Error('offline');return r.json()}).then(h=>{setHealth(h);setBackendOnline(true)}).catch(()=>{setHealth(null);setBackendOnline(false)})},[]);
 
   const go=(next:Screen)=>{setScreen(next);window.scrollTo({top:0,behavior:'smooth'});};
   const enterPrepare=()=>{if(active){go('running');return;} setActivity(rec.activity);setMinutes(rec.minutes);go('prepare')};
   const start=()=>{const item:ActiveSession={id:crypto.randomUUID(),activity,startedAt:new Date().toISOString(),moodBefore:preMood,targetMinutes:minutes};setActive(item);setNow(Date.now());go('running')};
-  const stop=()=>{setPostMood(active?.moodBefore||3);setReportedOutdoors(true);setNote('');go('finish')};
+  const stop=()=>{
+    if(!active)return;
+    setActive({...active,endedAt:new Date().toISOString()});
+    setPostMood(active.moodBefore);setReportedOutdoors(true);setNote('');go('finish');
+  };
   const saveSession=()=>{
     if(!active)return;
-    const finishedAt=new Date().toISOString();
+    const finishedAt=active.endedAt || new Date().toISOString();
     const s:Session={id:active.id,activity:active.activity,startedAt:active.startedAt,finishedAt,
       seconds:elapsedSeconds(active.startedAt,Date.parse(finishedAt)),moodBefore:active.moodBefore,moodAfter:postMood,outdoorsReported:reportedOutdoors,note:note.trim().slice(0,180)};
-    setSessions(prev=>[s,...prev]);setRecommendation(null);setLatest(s);setActive(null);go('result');
+    setSessions(prev=>appendSessionOnce(prev,s));setRecommendation(null);setLatest(s);setActive(null);go('result');
   };
   const cancelSession=()=>{setActive(null);go('home')};
   const getAi=async()=>{
@@ -96,7 +106,7 @@ export default function App(){
 
       {screen==='running'&&active&&<section className="flow-page"><div className="step-caption">STEP 02 OF 03 <span/> BE OUT THERE</div><h1>This is your time <em>outside.</em></h1><p className="lead">Set your phone down. Look up. Move or sit. You don't have to accomplish anything.</p><div className="running-card"><div className="running-illustration"><div className="running-sun"><Sun size={39}/></div><span className="orbit orbit-a"/><span className="orbit orbit-b"/></div><SectionLabel>YOUR SESSION IS RUNNING</SectionLabel><div className="big-timer" aria-live="off">{formatDuration(elapsed)}</div><div className="time-sub">Suggested experiment · {active.targetMinutes} min</div><div className="session-progress"><div style={{width:`${Math.min(100,elapsed/(active.targetMinutes*60)*100)}%`}}/></div><p className="running-tip">{ACTIVITY_LABELS[active.activity]}. Keep your phone in your pocket whenever you can.</p><button className="primary-btn dark full" onClick={stop}>I'm back, finish session <ArrowRight size={19}/></button><button className="secondary-text-btn" onClick={cancelSession}>Discard this session</button></div></section>}
 
-      {screen==='finish'&&active&&<section className="flow-page"><button className="back-link" onClick={()=>go('running')}><ArrowLeft size={17}/> Back to timer</button><div className="step-caption">STEP 03 OF 03 <span/> REFLECT</div><h1>Welcome <em>back.</em></h1><p className="lead">Your break lasted {formatDuration(elapsed)}. Let's capture how it felt.</p><div className="flow-card"><div className="form-section"><label className="form-label">How do you feel now?</label><MoodPicker value={postMood} onChange={setPostMood}/></div><div className="form-section"><label className="form-label" htmlFor="session-note">One thing you noticed <span className="optional">(optional)</span></label><textarea id="session-note" className="notes-input" maxLength={180} placeholder="The breeze was lovely, I felt more focused…" value={note} onChange={e=>setNote(e.target.value)} rows={3}/></div><label className="confirm-row"><input type="checkbox" checked={reportedOutdoors} onChange={e=>setReportedOutdoors(e.target.checked)}/><span>I spent this session outdoors <small>Self-reported, not sensor-verified.</small></span></label><button className="primary-btn full" onClick={saveSession}>Save my experience <ArrowRight size={19}/></button></div></section>}
+      {screen==='finish'&&active&&<section className="flow-page"><button className="back-link" onClick={()=>{setActive({...active,endedAt:undefined});go('running')}}><ArrowLeft size={17}/> Resume timer</button><div className="step-caption">STEP 03 OF 03 <span/> REFLECT</div><h1>Welcome <em>back.</em></h1><p className="lead">Your break lasted {formatDuration(elapsed)}. Let's capture how it felt.</p><div className="flow-card"><div className="form-section"><label className="form-label">How do you feel now?</label><MoodPicker value={postMood} onChange={setPostMood}/></div><div className="form-section"><label className="form-label" htmlFor="session-note">One thing you noticed <span className="optional">(optional)</span></label><textarea id="session-note" className="notes-input" maxLength={180} placeholder="The breeze was lovely, I felt more focused…" value={note} onChange={e=>setNote(e.target.value)} rows={3}/></div><label className="confirm-row"><input type="checkbox" checked={reportedOutdoors} onChange={e=>setReportedOutdoors(e.target.checked)}/><span>I spent this session outdoors <small>Self-reported, not sensor-verified.</small></span></label><button className="primary-btn full" onClick={saveSession}>Save my experience <ArrowRight size={19}/></button></div></section>}
 
       {screen==='result'&&latest&&<section className="flow-page"><div className="result-check"><CheckCircle2 size={30}/></div><div className="step-caption">EXPERIMENT COMPLETE</div><h1>You showed <em>up.</em></h1><p className="lead">You made time for the world outside your screen. Here's what you reported.</p><div className="flow-card"><div className="result-overview"><div><SectionLabel>TIME SPENT</SectionLabel><strong>{Math.round(latest.seconds/60)} <small>min</small></strong><span>{latest.outdoorsReported?'Self-reported outdoors':'Not marked as outdoors'}</span></div><div><SectionLabel>MOOD CHANGE</SectionLabel><strong>{moodChange(latest)>0?'+':''}{moodChange(latest)} <small>points</small></strong><span>From {latest.moodBefore}/5 to {latest.moodAfter}/5</span></div></div><div className="reflection-box"><Heart size={20}/><p>{moodChange(latest)>0?'You reported feeling better after this session. One experience doesn’t establish a pattern, but it’s worth exploring.':moodChange(latest)<0?'You reported feeling worse, and that matters too. Not every outdoor break feels good. We can try a different approach.':'Your mood rating stayed the same. That’s a valid result. Perhaps another activity or time would feel different.'}</p></div><div className="experiment-footer result-actions"><button className="primary-btn dark" onClick={getAi} disabled={aiLoading}><Sparkles size={18}/>{aiLoading?'Asking open AI…':'Ask AI what to try next'}</button><button className="link-muted" onClick={()=>go('journal')}>View journal <ArrowRight size={17}/></button></div>{aiError&&<p role="alert" className="error-text">{aiError}</p>}{recommendation&&<div className="ai-recommendation"><SectionLabel>OPEN-WEIGHT AI EXPERIMENT</SectionLabel><h3>{rec.title}</h3><p>{rec.instruction}</p><span>{rec.evidence_note}</span><button className="text-link" onClick={enterPrepare}>Try it <ArrowRight size={16}/></button></div>}</div></section>}
 

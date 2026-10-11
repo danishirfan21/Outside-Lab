@@ -61,3 +61,16 @@ def test_live_adapter_uses_open_weight_model_and_user_data(monkeypatch):
     assert sent['model_name'] == main.MODEL and sent['llm_provider'] == main.PROVIDER
     assert '"minutes": 5.0' in sent['content']
     assert result.json()['title'] == valid['title']
+
+def test_backend_downtime_returns_safe_error(monkeypatch):
+    import httpx
+    monkeypatch.setattr(main, 'KEY', 'fake-key')
+    monkeypatch.setattr(main, 'ACCESS_CODE', '')
+    monkeypatch.setattr(main, 'rate_log', main.defaultdict(main.deque))
+    post = AsyncMock(side_effect=httpx.ConnectError('offline'))
+    with patch('backend.app.main.httpx.AsyncClient') as construct:
+        construct.return_value.__aenter__ = AsyncMock(return_value=MagicMock(post=post))
+        construct.return_value.__aexit__ = AsyncMock(return_value=False)
+        result = client.post('/api/recommend', json=example)
+    assert result.status_code == 502
+    assert 'invalid experiment' in result.json()['detail']

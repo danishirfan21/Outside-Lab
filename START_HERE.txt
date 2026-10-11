@@ -23,4 +23,4 @@ For React source: cd frontend; npm install; npm run dev. It uses the local backe
 See README.md for complete docs, privacy limitations, tests, and contest checklist.
 See docs/DEV_ARTICLE_DRAFT.md and docs/DEMO_SCRIPT.md for submission materials.
 
-NOTE: I could not validate real Backboard calls without your API key or build React without npm network access. Backend tests passed and preview flow passed a scripted simulation. Do not claim untested features were verified.
+Verification: the React production build, 7 frontend domain tests, and 9 backend tests passed on October 11, 2026. A real Backboard call and a physical-phone/outdoor test still require your own API key and testing; do not claim either as verified until you perform it.

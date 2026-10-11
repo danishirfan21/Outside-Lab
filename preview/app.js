@@ -8,9 +8,9 @@ const moodNames=['','Very low','Low','Okay','Good','Great'];
 const moodFaces=['','😞','😕','😐','🙂','😊'];
 const defaultRec={title:'A few minutes under the open sky',instruction:'Step into a safe outdoor space, leave your phone in your pocket, and notice how you feel.',rationale:'Starter suggestion, not AI-generated.',focus_question:'Did you feel any different afterward?',activity:'sit',minutes:5,evidence_note:'Starter suggestion, not AI-generated.'};
 let state={screen:'home',sessions:get('sessions',[]),active:get('active',null),last:null,before:3,after:3,activity:'sit',minutes:5,note:'',reported:true,rec:get('rec',null),error:'',loading:false,configured:false,code:sessionStorage.getItem('ol-code')||''};
-if(state.active)state.screen='running';
+if(state.active)state.screen=state.active.endedAt?'finish':'running';
 const app=$('#app');
-const elapsed=()=>Math.max(0,Math.floor((Date.now()-new Date(state.active?.startedAt||Date.now()).getTime())/1000));
+const elapsed=()=>Math.max(0,Math.floor(((state.active?.endedAt?new Date(state.active.endedAt).getTime():Date.now())-new Date(state.active?.startedAt||Date.now()).getTime())/1000));
 const fmt=seconds=>`${String(Math.floor(Math.max(0,seconds)/60)).padStart(2,'0')}:${String(Math.max(0,seconds)%60).padStart(2,'0')}`;
 const mins=()=>Math.round(state.sessions.filter(s=>s.outdoorsReported).reduce((t,s)=>t+s.seconds,0)/60);
 const shell=html=>{app.innerHTML=html;};
@@ -39,15 +39,16 @@ app.addEventListener('click',ev=>{const element=ev.target.closest('[data-action]
  if(action.startsWith('activity-')){state.activity=action.split('-')[1];render();return}
  if(action.startsWith('minutes-')){state.minutes=Number(action.split('-')[1]);render();return}
  if(action==='ask-ai'){ai();return}
- if(action==='prepare'){if(state.active){go('running');return}state.activity=(state.rec||defaultRec).activity;state.minutes=(state.rec||defaultRec).minutes;go('prepare');return}
+ if(action==='prepare'){if(state.active){go(state.active.endedAt?'finish':'running');return}state.activity=(state.rec||defaultRec).activity;state.minutes=(state.rec||defaultRec).minutes;go('prepare');return}
  if(action==='start'){state.active={id:crypto.randomUUID(),activity:state.activity,startedAt:new Date().toISOString(),moodBefore:state.before,targetMinutes:state.minutes};store('active',state.active);go('running');return}
- if(action==='stop'){state.after=state.active.moodBefore;state.reported=true;state.note='';go('finish');return}
+ if(action==='stop'){if(!state.active)return;state.active.endedAt=new Date().toISOString();store('active',state.active);state.after=state.active.moodBefore;state.reported=true;state.note='';go('finish');return}
  if(action==='cancel'){state.active=null;store('active',null);go('home');return}
- if(action==='save'){const a=state.active;if(!a)return;const end=new Date();const session={id:a.id,activity:a.activity,startedAt:a.startedAt,finishedAt:end.toISOString(),seconds:Math.max(0,Math.floor((end-new Date(a.startedAt))/1000)),moodBefore:a.moodBefore,moodAfter:state.after,outdoorsReported:state.reported,note:state.note.slice(0,180)};state.last=session;state.sessions.unshift(session);store('sessions',state.sessions);state.rec=null;store('rec',null);state.active=null;store('active',null);go('result');return}
+ if(action==='running'&&state.active?.endedAt){delete state.active.endedAt;store('active',state.active)}
+ if(action==='save'){const a=state.active;if(!a)return;const end=new Date(a.endedAt||Date.now());const session={id:a.id,activity:a.activity,startedAt:a.startedAt,finishedAt:end.toISOString(),seconds:Math.max(0,Math.floor((end-new Date(a.startedAt))/1000)),moodBefore:a.moodBefore,moodAfter:state.after,outdoorsReported:state.reported,note:state.note.slice(0,180)};state.last=session;if(!state.sessions.some(s=>s.id===session.id))state.sessions.unshift(session);store('sessions',state.sessions);state.rec=null;store('rec',null);state.active=null;store('active',null);go('result');return}
  go(action);
 });
 app.addEventListener('input',ev=>{if(ev.target.id==='note')state.note=ev.target.value;if(ev.target.id==='access'){state.code=ev.target.value;sessionStorage.setItem('ol-code',state.code)}});
 app.addEventListener('change',ev=>{if(ev.target.id==='outdoors')state.reported=ev.target.checked});
-document.querySelectorAll('header [data-action]').forEach(b=>b.addEventListener('click',()=>{const action=b.dataset.action;if(action==='prepare'){if(state.active){go('running');return}state.activity=(state.rec||defaultRec).activity;state.minutes=(state.rec||defaultRec).minutes;go('prepare')}else go(action)}));
+document.querySelectorAll('header [data-action]').forEach(b=>b.addEventListener('click',()=>{const action=b.dataset.action;if(action==='prepare'){if(state.active){go(state.active.endedAt?'finish':'running');return}state.activity=(state.rec||defaultRec).activity;state.minutes=(state.rec||defaultRec).minutes;go('prepare')}else {if(action==='running'&&state.active?.endedAt){delete state.active.endedAt;store('active',state.active)}go(action)}}));
 setInterval(()=>{if(state.screen==='running'){const timer=$('#live-timer');if(timer)timer.textContent=fmt(elapsed());const progress=$('#progress-line');if(progress)progress.style.width=`${Math.min(100,elapsed()/((state.active?.targetMinutes||5)*60)*100)}%`}},1000);
 render();

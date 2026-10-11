@@ -7,7 +7,7 @@ Instead of rewarding phone usage, Outside Lab asks the user to check in, put the
 ## What works now
 
 - 3-stage flow: mood check-in → outdoor session → reflection.
-- Timestamp-based timer that can recover if the browser page refreshes in the React version.
+- Timestamp-based timer that records the return time (not the time spent filling in reflection), and can recover an in-progress or ended reflection after refresh.
 - Sitting, gentle walking, or spending time with a pet, including within a private courtyard.
 - Local session history and minutes **self-reported** outdoors.
 - Real (not simulated) Backboard integration endpoint with typed JSON validation and error handling.
@@ -38,7 +38,7 @@ npm run dev
 
 Open http://localhost:5173. During development Vite proxies `/api` to port 8000. If backend is hosted elsewhere, set `VITE_API_BASE` in `frontend/.env` and ensure its CORS allows your frontend origin.
 
-The React frontend uses Tailwind's toolchain plus a custom responsive stylesheet.
+The React frontend uses a custom responsive stylesheet and has no runtime icon-library dependency.
 
 ## FastAPI + Backboard backend
 
@@ -96,7 +96,7 @@ npm test
 npm run build
 ```
 
-**Verification recorded at packaging:** backend 8/8 tests passed; standalone browser implementation passed a simulated flow (check-in, start, stop, save, journal) in Node. The React production build was **not executed** in this sandbox because npm package downloads timed out. A real Backboard call was **not executed** without an API key. Real outdoor testing is also still outstanding. These items are not claimed as complete.
+**Verification recorded on October 11, 2026:** 9/9 backend tests passed; 7/7 frontend domain tests passed; and `npm run build` completed successfully. Tests cover timestamp duration calculations, malformed saved timestamps, duplicate-save protection, mood/API validation, malformed model output, missing credentials, access-code protection, and the mocked Backboard request contract. A real Backboard call was **not executed** because no API key was provided. Real outdoor/device testing is also still outstanding.
 
 ## Why the open model matters
 
@@ -114,6 +114,7 @@ Backboard is a hosted inference platform, so AI requests **are sent to an extern
 - This does not detect outdoor presence. Outdoor minutes are **declared by the user**.
 - Mood ratings are personal reflections; they do **not** establish causality, diagnose conditions, or guarantee mental-health benefits.
 - Timing is based on wall-clock timestamps, which are convenient but can be changed by device clock changes.
+- The browser timer uses timestamps rather than counting intervals; a backgrounded tab can still display the correct elapsed time when it returns.
 - Local browser storage isn't synced across devices; clearing storage erases it.
 - Sending an AI request transmits recent session summaries (mood, timing, activity, optional notes) to Backboard. Do not enter sensitive information in notes.
 - In-memory IP rate limiting is a prototype safeguard only. For public deployment, set `API_ACCESS_CODE` and use proper abuse protection. Never put `BACKBOARD_API_KEY` in frontend or screenshots.
