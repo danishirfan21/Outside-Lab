@@ -58,13 +58,13 @@ Edit `backend/.env` (never commit it):
 ```env
 BACKBOARD_API_KEY=your_real_key
 BACKBOARD_PROVIDER=openrouter
-BACKBOARD_MODEL=qwen/qwen3-4b
+BACKBOARD_MODEL=qwen/qwen3-8b
 ALLOWED_ORIGINS=http://localhost:5173,http://localhost:8787,http://127.0.0.1:5173,http://127.0.0.1:8787
 # For deployment, use a long private value:
 API_ACCESS_CODE=
 ```
 
-**Important:** The Qwen3-4B OpenRouter model slug is documented publicly, but availability and JSON-mode support **inside your own Backboard account are unverified** until you check your live model catalog. If unavailable, use an available open-weight Qwen model from your actual catalog and set `BACKBOARD_MODEL` accordingly. Don't silently fall back to a proprietary model.
+**Important:** `qwen/qwen3-8b` was present in this project's Backboard catalog on October 12, 2026 and advertises JSON-output support. Catalog availability is account-specific and can change, so run the check before a live demo. If it is unavailable, set `BACKBOARD_MODEL` to an available **open-weight Qwen** identifier from your own catalog; never silently fall back to a proprietary model.
 
 Check catalog:
 
@@ -96,7 +96,27 @@ npm test
 npm run build
 ```
 
-**Verification recorded on October 11, 2026:** 9/9 backend tests passed; 7/7 frontend domain tests passed; and `npm run build` completed successfully. Tests cover timestamp duration calculations, malformed saved timestamps, duplicate-save protection, mood/API validation, malformed model output, missing credentials, access-code protection, and the mocked Backboard request contract. A real Backboard call was **not executed** because no API key was provided. Real outdoor/device testing is also still outstanding.
+**Latest release verification (October 12, 2026):** 9/9 backend tests, 8/8 frontend domain tests, and the production build pass. The Backboard catalog confirms `openrouter/qwen/qwen3-8b` supports JSON output. One minimal live request was attempted with the configured server key but returned the app's safe `502` AI-unavailable response, so no live recommendation is claimed. Run `python check_models.py` and make a successful real request before recording or submitting an AI demo.
+
+## Android on the same Wi-Fi
+
+The backend remains private on the laptop; the phone talks to it through Vite's `/api` proxy.
+
+```powershell
+# PowerShell window 1
+cd 'D:\Outside Lab\backend'
+.\.venv\Scripts\Activate.ps1
+uvicorn app.main:app --host 127.0.0.1 --port 8000
+
+# PowerShell window 2
+cd 'D:\Outside Lab\frontend'
+npm run dev
+
+# PowerShell window 3: find the IPv4 address to enter on the phone
+Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.IPAddress -notlike '127.*'} | Format-Table IPAddress,InterfaceAlias
+```
+
+Open `http://<LAPTOP_IPV4>:5173` in Android Chrome. If Windows Defender Firewall prompts, allow Node/Vite on **Private** networks only. Do not open port 8000 to the network: the Vite proxy forwards the phone's same-origin `/api` calls to `127.0.0.1:8000` on the laptop. This has been configuration-checked, but not tested on a physical Android device.
 
 ## Why the open model matters
 

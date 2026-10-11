@@ -9,4 +9,5 @@ describe('local session calculations',()=>{
  it('retains negative mood changes',()=>expect(moodChange({...base,moodAfter:1})).toBe(-1));
  it('formats actual elapsed time',()=>expect(formatDuration(125)).toBe('02:05'));
  it('does not duplicate a completed session when save is repeated',()=>expect(appendSessionOnce([base],base)).toHaveLength(1));
+ it('uses the saved return timestamp after the timer is interrupted',()=>expect(elapsedSeconds(base.startedAt,Date.parse(base.finishedAt))).toBe(300));
 });

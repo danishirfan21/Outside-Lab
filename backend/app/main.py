@@ -22,7 +22,7 @@ load_dotenv()
 
 BACKBOARD_URL = "https://app.backboard.io/api/threads/messages"
 PROVIDER = os.getenv("BACKBOARD_PROVIDER", "openrouter")
-MODEL = os.getenv("BACKBOARD_MODEL", "qwen/qwen3-4b")
+MODEL = os.getenv("BACKBOARD_MODEL", "qwen/qwen3-8b")
 KEY = os.getenv("BACKBOARD_API_KEY", "")
 ACCESS_CODE = os.getenv("API_ACCESS_CODE", "")
 ALLOWED_ORIGINS = [item.strip() for item in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:8787,http://127.0.0.1:8787").split(",") if item.strip()]

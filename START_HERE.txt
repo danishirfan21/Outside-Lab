@@ -23,4 +23,6 @@ For React source: cd frontend; npm install; npm run dev. It uses the local backe
 See README.md for complete docs, privacy limitations, tests, and contest checklist.
 See docs/DEV_ARTICLE_DRAFT.md and docs/DEMO_SCRIPT.md for submission materials.
 
-Verification: the React production build, 7 frontend domain tests, and 9 backend tests passed on October 11, 2026. A real Backboard call and a physical-phone/outdoor test still require your own API key and testing; do not claim either as verified until you perform it.
+Verification: the React production build, 8 frontend domain tests, and 9 backend tests passed on October 12, 2026. The Backboard model catalog verified Qwen3-8B JSON support. One live request returned the app's safe AI-unavailable response, so a real successful recommendation and physical-phone/outdoor test still require your own verification; do not claim either as complete until you perform it.
+
+Android on the same Wi-Fi: keep the backend on 127.0.0.1:8000, run `npm run dev`, use `Get-NetIPAddress -AddressFamily IPv4` to find this laptop's address, then open `http://<LAPTOP_IPV4>:5173` in Android Chrome. Allow Vite through Windows Firewall on Private networks only. The phone uses Vite's `/api` proxy; do not expose port 8000.

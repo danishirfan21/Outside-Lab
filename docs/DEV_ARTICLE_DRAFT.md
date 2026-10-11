@@ -1,93 +1,60 @@
-# I Built an AI That Wants Me to Put My Phone Away
+# Outside Lab: an AI experiment designed to get me off my phone
 
-> **Hacktoberfest 2026 · Touch Grass**
+> Hacktoberfest 2026 — Touch Grass
 >
-> Tags when posting: `#devchallenge` and `#hf26challenge`
->
-> **Before publishing:** This is an article DRAFT. Replace bracketed placeholders with **actual** links, measurements, screenshots, and observations. Open the official challenge's submission template and use its required sections.
+> This is a publication draft. Replace every bracketed item with real evidence before posting. Use the DEV submission template so `#devchallenge` and `#hf26challenge` are applied.
 
-## The problem I didn't expect
+## What I Built
 
-I work at a computer. On many days, almost everything I need is delivered through a screen: messages, work, groceries, and entertainment. I wanted to create something with AI that would make the world outside feel worth visiting, even if 'outside' only meant the courtyard at home.
+Outside Lab is a small outdoor-experiment journal. It asks for a before-session mood rating, a chosen activity, and a short duration; then it encourages the person to put their phone away. When they return, it records the actual timestamped duration, an after-session mood rating, and an optional observation.
 
-I considered GPS-powered experiences, satellite maps, bird sounds, gardening and microclimates. Most could be explored from indoors, or required specialized sensing that a phone browser cannot reliably provide.
+The journal is local to the browser. It shows factual, self-reported history and mood changes; it does not claim GPS verification, medical benefits, or causal proof.
 
-Eventually I asked a different question: **What if AI didn't give me more to look at, but gave me a reason to close the app?**
+The open-weight model is used for one specific job: after a person has real history, it proposes the next small experiment and explains its limited evidence. A conventional timer can count minutes. It cannot use the sequence of chosen activity, reported duration, mood change, and note to choose a different next comparison.
 
-## What I built
+## Demo
 
-Meet **Outside Lab**. It helps you try a small outdoor activity and observe how you personally feel afterward.
+- Demo recording: [ADD REAL RECORDING URL]
+- Outdoor screenshots: [ADD REAL SCREENSHOTS]
+- Real device and outdoor observations: [ADD AFTER TESTING]
+- Live Backboard output: [PASTE A REAL, SUCCESSFUL OUTPUT]
 
-1. Select your current mood, an activity, and a short duration.
-2. Start a session, put the phone away, and spend time in a safe outdoor spot.
-3. Return to the app, record your mood, and optionally write one sentence about the experience.
-4. Ask an open-weight AI model to suggest the next experiment based on real sessions.
+Do not use simulated timer screenshots or an invented recommendation as evidence.
 
-The app shows elapsed time and self-reported mood changes, not invented productivity scores or automatic GPS-based outdoor detection.
+## Code
 
-**Repository:** [ADD REAL REPO LINK]
+Repository: https://github.com/danishirfan21/Outside-Lab
 
-**Live demo or recording:** [ADD LINK]
+The primary frontend is React and TypeScript. FastAPI keeps the Backboard key on the server. Browser storage holds sessions; only a bounded summary of the most recent sessions is sent when the person explicitly asks for an AI idea.
 
-**Actual outdoor screenshots:** [ADD SCREENSHOTS]
+## How I Built It
 
-## Why open-weight AI is essential to my experiment
+- Timestamp-based session timing survives backgrounding better than a counter: elapsed time is derived from `startedAt`, and the return timestamp is captured before reflection.
+- Refresh recovery returns to an in-progress timer or an unfinished reflection, rather than silently losing it.
+- Completed sessions are idempotent by ID, so a repeated save cannot duplicate a journal entry.
+- The FastAPI adapter uses Backboard's `POST /api/threads/messages`, an `X-API-Key` only on the server, `memory: "off"`, `web_search: "off"`, and `json_output: true`.
+- The response is parsed as JSON and validated against a bounded recommendation schema. An upstream failure produces an error state, never a fabricated AI suggestion.
 
-A normal timer doesn't know what you've tried. A rigid habit app tells you to hit the same number every day. I wanted a model to consider a sequence of real sessions and propose a new, manageable experiment: sit instead of walk, compare being outdoors with a pet, or change one variable at a time.
+Automated verification on October 12, 2026: 8 frontend domain tests, 9 backend tests, and the React production build passed. The Backboard catalog listed `openrouter/qwen/qwen3-8b` with JSON support. One live request was attempted but returned the app's safe AI-unavailable response; therefore this draft does **not** claim successful live inference or a real personalization example yet.
 
-I used **Qwen3-4B**, an Apache-2.0 open-weight model, accessed through **Backboard's unified API**. The model is responsible for proposing next experiments and explaining why the next one is worth trying. Ordinary deterministic code calculates session duration and the difference between the person's self-reported before/after ratings.
+## Why Does Open Innovation Matter?
 
-The model route is configurable. Open weights matter because the app's behavior can be inspected, evaluated, and eventually served outside the hosted provider. This prototype **does not** claim the inference currently runs on-device or offline.
+Outside Lab uses Qwen3-8B, an Apache-2.0 open-weight model, through Backboard. Its model route is configuration rather than a hidden application constant, so the project can inspect, evaluate, and replace its model choice without changing the personal-journal logic. The model's role is narrow and inspectable: turn user-provided history into one suggested comparison, not manufacture wellness statistics.
 
-**Actual Backboard model/provider verified:** [ENTER MODEL AFTER LIVE TEST]
+This prototype uses hosted inference, so it is not an offline or on-device AI application. That is a current limitation, not a claim to hide. The Qwen weights remain separately licensed and are not bundled with this repository.
 
-**Proof the model used the previous session:** [ADD REAL BEFORE/AFTER PROMPT + OUTPUT COMPARISON]
+## Prize Categories
 
-## How I built it
-
-- React + TypeScript frontend, mobile-first responsive design.
-- FastAPI endpoint with server-side Backboard credentials.
-- Local browser storage for user-reported sessions.
-- Independent Backboard requests with recent session summaries, no need for remote agent memory.
-- Schema-validation and honest error handling: if Backboard fails, the UI does not invent AI output.
-
-The prototype also includes a dependency-free browser preview to reduce setup friction.
-
-## My actual outdoor test
-
-> Fill this in after doing the test outdoors. Don't invent a positive outcome.
-
-**Location type:** [Courtyard / garden / accessible rooftop, no exact address]
-
-**Session 1:** [Activity, actual start/end, duration, mood before and after, observations]
-
-**Session 2:** [Activity, actual start/end, duration, mood before and after, observations]
-
-**What the AI suggested afterward:** [Paste the actual model output]
-
-**Did I want to continue?** [Honest reflections, what was awkward, what surprised you]
-
-A change in self-reported mood after a short session is not proof that outdoor time caused it. That's why Outside Lab frames its suggestions as experiments rather than medical conclusions.
-
-## What didn't work, and what I cut
-
-This is a prototype, not a completed wellness platform. It does not detect whether someone is truly outdoors, infer air quality at five-foot resolution, or prove mental-health outcomes. Automatic location verification, notifications, wearable sensors, public-route planning, and cloud accounts were all cut.
-
-**Technical challenges discovered during final testing:** [ADD ACTUAL ISSUES]
-
-**Current tests:** Backend automated tests and a scripted flow for the dependency-free preview. React production build and live model behavior must be verified before describing them as tested.
-
-## Future roadmap
-
-With more time, I would test whether users return to the app after a week and whether AI-proposed comparisons teach them anything useful. Later enhancements could include weather-aware suggestions, more outdoor activities, optional activity sensors, better longitudinal analysis, and Urdu-language coaching.
-
-But the guiding idea stays the same: the best moment in Outside Lab is when you close it and go outside.
-
----
-
-## Prize categories
-
-- Best Use of Backboard **only if the actual open-weight model call has been tested and demonstrated**.
 - Overall Touch Grass category.
+- Best Use of Backboard — enter only after a real successful Backboard response is captured and shown in the demo.
 
-**Acknowledgements:** This project used AI coding assistance. The source repository and tests document the implementation; all on-device/outdoor observations are independently reported and not simulated.
+## What I Still Need to Do Personally
+
+1. Complete at least one genuine outdoor session and record only what actually happened.
+2. Test the Android flow: background/lock the phone, return, save, and inspect history.
+3. Resolve the live Backboard error, then capture the model's real output based on real saved history.
+4. Add the demo URL, screenshots, and honest observations above.
+
+## Future Work
+
+Weather context, more activity types, cloud sync, wearable sensing, and local inference are ideas only. They are not part of the submitted prototype.
