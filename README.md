@@ -118,6 +118,19 @@ Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.IPAddress -notlike '127.
 
 Open `http://<LAPTOP_IPV4>:5173` in Android Chrome. If Windows Defender Firewall prompts, allow Node/Vite on **Private** networks only. Do not open port 8000 to the network: the Vite proxy forwards the phone's same-origin `/api` calls to `127.0.0.1:8000` on the laptop. This has been configuration-checked, but not tested on a physical Android device.
 
+## One-service Render deployment
+
+The included `Dockerfile` builds the React app and makes FastAPI serve both the browser app and `/api` at one Render URL. Create a **Web Service** with:
+
+```text
+Runtime: Docker
+Root Directory: leave blank (repository root)
+Dockerfile Path: Dockerfile
+Health Check Path: /api/health
+```
+
+Set `BACKBOARD_API_KEY`, `BACKBOARD_PROVIDER`, `BACKBOARD_MODEL`, and (for a public service) `API_ACCESS_CODE` in Render's environment-variable UI. Do not set `VITE_API_BASE`: the deployed browser app uses its same-origin `/api` path. Set `ALLOWED_ORIGINS` to the final Render URL, for example `https://outside-lab.onrender.com`. Render provides the `PORT`; do not set it manually. This configuration has not been deployed from this repository.
+
 ## Why the open model matters
 
 Without the Qwen model, the app can still time sessions and draw statistics. With the open-weight model, it can use the user's actual history to choose *which experiment to try next* and *what to notice*, without us authoring rigid suggestions for every combination of past experiences. The model is interchangeable; routing and prompts are plain source code.

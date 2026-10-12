@@ -10,12 +10,15 @@ import os
 import re
 import time
 from collections import defaultdict, deque
+from pathlib import Path
 from typing import Literal
 
 import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Header, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, ValidationError, field_validator
 
 load_dotenv()
@@ -30,6 +33,12 @@ ALLOWED_ORIGINS = [item.strip() for item in os.getenv("ALLOWED_ORIGINS", "http:/
 
 app = FastAPI(title="Outside Lab API", version="0.1.0", docs_url=None, redoc_url=None)
 app.add_middleware(CORSMiddleware, allow_origins=ALLOWED_ORIGINS, allow_methods=["GET", "POST"], allow_headers=["Content-Type", "X-Access-Code"])
+
+# When built with the production Docker image, FastAPI serves the React bundle
+# from the same public origin as the API. Local API-only development still works.
+FRONTEND_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+if FRONTEND_DIST.is_dir():
+    app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="frontend-assets")
 
 # Prototype cost guard: per server-process/IP bucket, no persistence across restarts.
 rate_log: dict[str, deque[float]] = defaultdict(deque)
@@ -183,3 +192,14 @@ async def recommend(payload: RecommendIn, request: Request, x_access_code: str |
         raise ai_failure("model_schema_invalid") from exc
     except (TypeError, ValueError) as exc:
         raise ai_failure("model_response_invalid") from exc
+
+
+@app.get("/{path:path}", include_in_schema=False)
+async def frontend(path: str):
+    """Serve a built SPA without ever masking an API route."""
+    if not FRONTEND_DIST.is_dir():
+        raise HTTPException(404, "Frontend build is not present on this API server.")
+    candidate = (FRONTEND_DIST / path).resolve()
+    if candidate.is_relative_to(FRONTEND_DIST.resolve()) and candidate.is_file():
+        return FileResponse(candidate)
+    return FileResponse(FRONTEND_DIST / "index.html")

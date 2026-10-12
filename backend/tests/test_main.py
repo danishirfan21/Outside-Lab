@@ -12,6 +12,11 @@ def test_health_reports_configuration_without_key(monkeypatch):
     res = client.get('/api/health')
     assert res.status_code == 200 and res.json()['ai_configured'] is False
 
+def test_frontend_fallback_is_safe_when_bundle_is_missing(monkeypatch, tmp_path):
+    monkeypatch.setattr(main, 'FRONTEND_DIST', tmp_path / 'missing-dist')
+    response = client.get('/')
+    assert response.status_code == 404
+
 def test_missing_key_does_not_fabricate_ai(monkeypatch):
     monkeypatch.setattr(main, "KEY", "")
     assert client.post('/api/recommend', json=example).status_code == 503
